@@ -1,0 +1,195 @@
+/* Apple Music风格的自定义CSS */
+
+/* 隐藏Vue初始化前的内容 */
+[v-cloak] {
+  display: none;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
+/* 自定义范围输入样式 */
+.range {
+  height: 5px;
+  background-color: rgba(156, 163, 175, 0.2);
+}
+
+.range::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  background-color: #ef4444;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background-color: #ef4444;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* 主题颜色 */
+.range-primary::-webkit-slider-thumb {
+  background-color: #f43f5e;
+}
+
+.range-primary::-moz-range-thumb {
+  background-color: #f43f5e;
+}
+
+/* 按钮样式 */
+.btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  line-height: 1 !important;
+}
+
+.btn-circle {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+  min-height: unset !important;
+}
+
+/* 图标样式 */
+.material-icons-round {
+  font-size: 24px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* 响应式调整 */
+@media (max-width: 640px) {
+  .btn-circle {
+    width: 40px !important;
+    height: 40px !important;
+  }
+}
+
+/* 专辑封面悬停效果 */
+.aspect-square {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.aspect-square:hover {
+  transform: scale(1.02);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* 播放按钮悬停效果 */
+.btn-circle.bg-rose-500 {
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.btn-circle.bg-rose-500:hover {
+  transform: scale(1.1);
+}
+
+/* 歌曲项目悬停效果 */
+.hover\:bg-gray-50:hover {
+  transition: background-color 0.2s ease;
+}
+
+/* 自定义toast样式 */
+.toast .alert {
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* 深色模式调整 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+/* 自定义输入框样式 */
+.input:focus {
+  box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.2);
+}
+
+/* 播放列表卡片样式 */
+.bg-white.dark\:bg-\[\#2c2c2e\] {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.bg-white.dark\:bg-\[\#2c2c2e\]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* 当前播放歌曲高亮 */
+.text-rose-500 {
+  position: relative;
+}
+
+.text-rose-500::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 16px;
+  background-color: #f43f5e;
+  border-radius: 2px;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .md\:w-1\/3 {
+    width: 100%;
+  }
+
+  .md\:w-2\/3 {
+    width: 100%;
+  }
+}
+
+/* 底部播放栏优化 */
+footer {
+  backdrop-filter: blur(10px);
+}

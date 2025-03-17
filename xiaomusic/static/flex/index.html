@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XiaoMusic - Apple Music风格</title>
+    <link rel="icon" href="../favicon.ico" />
+
+    <!-- 引入TailwindCSS -->
+    <script src="../tailwind/libs/tailwind.js"></script>
+
+    <!-- 引入字体和图标 -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
+      rel="stylesheet"
+    />
+
+    <!-- 引入jQuery -->
+    <script src="../tailwind/libs/jquery-3.6.0.js"></script>
+
+    <!-- 引入Vue 3 -->
+    <script src="../tailwind/libs/vue@3.5.13.js"></script>
+
+    <!-- 引入Axios -->
+    <script src="../tailwind/libs/axios.min.js"></script>
+
+    <!-- 引入API -->
+    <script src="../tailwind/api.js"></script>
+
+    <!-- 引入自定义CSS -->
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+
+  <body
+    class="font-sans bg-[#f5f5f7] dark:bg-[#1c1c1e] text-[#1d1d1f] dark:text-white transition-colors duration-300"
+  >
+    <div id="app" v-cloak>
+      <!-- 提示消息 -->
+      <div class="toast toast-top toast-center z-[9999]">
+        <div v-if="showToast" :class="['alert', toastType]">
+          <span>{{ toastMessage }}</span>
+        </div>
+      </div>
+
+      <!-- 移动端侧边栏 -->
+      <div
+        v-if="showSidebar"
+        @click="showSidebar = false"
+        class="fixed inset-0 bg-black/50 z-50 lg:hidden transition-opacity duration-300"
+      ></div>
+
+      <div
+        :class="['fixed top-0 left-0 h-full w-64 bg-[#f5f5f7] dark:bg-[#1c1c1e] z-50 transform transition-transform duration-300 lg:translate-x-0 shadow-xl lg:shadow-none', 
+                     showSidebar ? 'translate-x-0' : '-translate-x-full']"
+      >
+        <div class="p-4 flex flex-col h-full">
+          <div class="flex items-center mb-8">
+            <span class="material-icons-round text-rose-500 mr-2"
+              >music_note</span
+            >
+            <h1 class="text-xl font-semibold">XiaoMusic</h1>
+          </div>
+
+          <nav class="flex-1 overflow-y-auto">
+            <ul class="space-y-1">
+              <li v-for="(item, index) in sidebarItems" :key="index">
+                <a
+                  @click="selectSidebarItem(item.id)"
+                  :class="['flex items-center p-3 rounded-lg cursor-pointer transition-colors', 
+                                       activeSidebarItem === item.id ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' : 'hover:bg-gray-100 dark:hover:bg-gray-800']"
+                >
+                  <span class="material-icons-round mr-3">{{ item.icon }}</span>
+                  <span>{{ item.name }}</span>
+                </a>
+              </li>
+            </ul>
+          </nav>
+
+          <div class="mt-auto">
+            <a
+              href="../tailwind/setting.html"
+              class="flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+            >
+              <span class="material-icons-round mr-3">settings</span>
+              <span>设置</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 主内容区 -->
+      <div class="flex flex-col h-screen lg:ml-64">
+        <!-- 顶部导航栏 -->
+        <header
+          class="bg-[#f5f5f7]/80 dark:bg-[#1c1c1e]/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 sticky top-0 z-30"
+        >
+          <div class="flex items-center justify-between p-4">
+            <div class="flex items-center">
+              <button
+                @click="showSidebar = !showSidebar"
+                class="lg:hidden mr-4"
+              >
+                <span class="material-icons-round">menu</span>
+              </button>
+              <h1 class="text-xl font-semibold hidden sm:block">
+                {{ pageTitle }}
+              </h1>
+            </div>
+
+            <div class="flex items-center space-x-4">
+              <div class="relative">
+                <input
+                  type="text"
+                  v-model="searchQuery"
+                  @keyup.enter="searchMusic"
+                  placeholder="搜索音乐..."
+                  class="input input-sm bg-gray-100 dark:bg-gray-800 border-none rounded-full pl-10 pr-4 w-40 sm:w-64 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+                <span
+                  class="material-icons-round absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  >search</span
+                >
+              </div>
+
+              <button
+                @click="toggleTheme"
+                class="btn btn-sm btn-circle btn-ghost"
+              >
+                <span class="material-icons-round"
+                  >{{ isDarkMode ? 'light_mode' : 'dark_mode' }}</span
+                >
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <!-- 主内容 -->
+        <main class="flex-1 overflow-y-auto p-4 md:p-6">
+          <!-- 播放列表 -->
+          <div v-if="activeSidebarItem === 'playlists'" class="space-y-6">
+            <div
+              v-for="(playlist, index) in playlists"
+              :key="index"
+              class="bg-white dark:bg-[#2c2c2e] rounded-xl shadow-sm overflow-hidden"
+            >
+              <div
+                class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-800"
+              >
+                <h2 class="text-lg font-semibold">{{ playlist.name }}</h2>
+                <button
+                  @click="playPlaylist(playlist.name)"
+                  class="btn btn-sm btn-circle bg-rose-500 hover:bg-rose-600 border-none text-white"
+                >
+                  <span class="material-icons-round">play_arrow</span>
+                </button>
+              </div>
+
+              <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                <div
+                  v-for="(song, songIndex) in playlist.songs"
+                  :key="songIndex"
+                  @click="playSong(playlist.name, song)"
+                  class="p-4 flex items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors"
+                >
+                  <div
+                    class="w-10 h-10 rounded-md bg-gray-200 dark:bg-gray-700 overflow-hidden mr-4"
+                  >
+                    <img
+                      :src="song.cover || '../tailwind/favicon.ico'"
+                      alt="Cover"
+                      class="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <h3 class="font-medium truncate">
+                      {{ song.title || song }}
+                    </h3>
+                    <p
+                      class="text-sm text-gray-500 dark:text-gray-400 truncate"
+                    >
+                      {{ song.artist || '未知艺术家' }}
+                    </p>
+                  </div>
+                  <div class="ml-4 flex items-center">
+                    <span class="text-sm text-gray-500 dark:text-gray-400"
+                      >{{ formatDuration(song.duration) }}</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 正在播放 -->
+          <div
+            v-if="activeSidebarItem === 'now_playing'"
+            class="flex flex-col md:flex-row md:items-start gap-8"
+          >
+            <div class="md:w-1/3 flex flex-col items-center">
+              <div
+                class="w-64 h-64 md:w-full md:h-auto aspect-square rounded-xl overflow-hidden shadow-lg mb-6"
+              >
+                <img
+                  :src="currentSong.cover || '../tailwind/favicon.ico'"
+                  alt="Album Cover"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+
+              <div class="text-center w-full">
+                <h2 class="text-2xl font-bold truncate">
+                  {{ currentSong.title || '未播放' }}
+                </h2>
+                <p class="text-gray-500 dark:text-gray-400 mb-4">
+                  {{ currentSong.artist || '未知艺术家' }} - {{
+                  currentSong.album || '未知专辑' }}
+                </p>
+
+                <!-- 进度条 -->
+                <div class="w-full mb-4">
+                  <div
+                    class="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-1"
+                  >
+                    <span>{{ formatTime(currentTime) }}</span>
+                    <span>{{ formatTime(duration) }}</span>
+                  </div>
+                  <input
+                    type="range"
+                    v-model="seekPosition"
+                    @change="seek"
+                    min="0"
+                    max="100"
+                    class="range range-xs range-primary w-full"
+                  />
+                </div>
+
+                <!-- 播放控制 -->
+                <div class="flex justify-center items-center space-x-4">
+                  <button
+                    @click="playPrevious"
+                    class="btn btn-circle btn-ghost"
+                  >
+                    <span class="material-icons-round text-2xl"
+                      >skip_previous</span
+                    >
+                  </button>
+                  <button
+                    @click="togglePlay"
+                    class="btn btn-circle bg-rose-500 hover:bg-rose-600 border-none text-white"
+                  >
+                    <span class="material-icons-round text-3xl"
+                      >{{ isPlaying ? 'pause' : 'play_arrow' }}</span
+                    >
+                  </button>
+                  <button @click="playNext" class="btn btn-circle btn-ghost">
+                    <span class="material-icons-round text-2xl">skip_next</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="md:w-2/3 mt-8 md:mt-0">
+              <div
+                class="bg-white dark:bg-[#2c2c2e] rounded-xl shadow-sm overflow-hidden"
+              >
+                <div class="p-4 border-b border-gray-100 dark:border-gray-800">
+                  <h2 class="text-lg font-semibold">播放队列</h2>
+                </div>
+
+                <div
+                  class="divide-y divide-gray-100 dark:divide-gray-800 max-h-[500px] overflow-y-auto"
+                >
+                  <div
+                    v-for="(song, index) in playQueue"
+                    :key="index"
+                    @click="playSongFromQueue(index)"
+                    :class="['p-4 flex items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors', 
+                                             currentSongIndex === index ? 'bg-rose-50 dark:bg-rose-900/20' : '']"
+                  >
+                    <div
+                      class="w-10 h-10 rounded-md bg-gray-200 dark:bg-gray-700 overflow-hidden mr-4"
+                    >
+                      <img
+                        :src="song.cover || '../tailwind/favicon.ico'"
+                        alt="Cover"
+                        class="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <h3
+                        :class="['font-medium truncate', currentSongIndex === index ? 'text-rose-500' : '']"
+                      >
+                        {{ song.title }}
+                      </h3>
+                      <p
+                        class="text-sm text-gray-500 dark:text-gray-400 truncate"
+                      >
+                        {{ song.artist || '未知艺术家' }}
+                      </p>
+                    </div>
+                    <div class="ml-4 flex items-center">
+                      <span class="text-sm text-gray-500 dark:text-gray-400"
+                        >{{ formatDuration(song.duration) }}</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <!-- 底部播放控制栏 -->
+        <footer
+          class="bg-white dark:bg-[#2c2c2e] border-t border-gray-200 dark:border-gray-800 p-3 sticky bottom-0 z-30"
+        >
+          <div class="flex items-center">
+            <div class="flex items-center flex-1 min-w-0">
+              <div
+                class="w-12 h-12 rounded-md bg-gray-200 dark:bg-gray-700 overflow-hidden mr-3"
+              >
+                <img
+                  :src="currentSong.cover || '../tailwind/favicon.ico'"
+                  alt="Cover"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+              <div class="min-w-0">
+                <h3 class="font-medium truncate">
+                  {{ currentSong.title || '未播放' }}
+                </h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 truncate">
+                  {{ currentSong.artist || '未知艺术家' }}
+                </p>
+              </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+              <button
+                @click="playPrevious"
+                class="btn btn-sm btn-circle btn-ghost hidden sm:flex"
+              >
+                <span class="material-icons-round">skip_previous</span>
+              </button>
+              <button
+                @click="togglePlay"
+                class="btn btn-sm btn-circle bg-rose-500 hover:bg-rose-600 border-none text-white"
+              >
+                <span class="material-icons-round"
+                  >{{ isPlaying ? 'pause' : 'play_arrow' }}</span
+                >
+              </button>
+              <button
+                @click="playNext"
+                class="btn btn-sm btn-circle btn-ghost hidden sm:flex"
+              >
+                <span class="material-icons-round">skip_next</span>
+              </button>
+            </div>
+
+            <div class="hidden md:flex items-center ml-4 space-x-4">
+              <button
+                @click="toggleRepeat"
+                :class="['btn btn-sm btn-circle btn-ghost', repeatMode !== 'off' ? 'text-rose-500' : '']"
+              >
+                <span class="material-icons-round"
+                  >{{ repeatMode === 'one' ? 'repeat_one' : 'repeat' }}</span
+                >
+              </button>
+              <button
+                @click="toggleShuffle"
+                :class="['btn btn-sm btn-circle btn-ghost', shuffle ? 'text-rose-500' : '']"
+              >
+                <span class="material-icons-round">shuffle</span>
+              </button>
+              <div class="flex items-center">
+                <span
+                  class="material-icons-round text-gray-500 dark:text-gray-400 mr-2"
+                  >volume_up</span
+                >
+                <input
+                  type="range"
+                  v-model="volume"
+                  @change="setVolume"
+                  min="0"
+                  max="100"
+                  class="range range-xs range-primary w-24"
+                />
+              </div>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

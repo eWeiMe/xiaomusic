@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>正在播放 - XiaoMusic</title>
+    <link rel="icon" href="../favicon.ico" />
+
+    <!-- 引入TailwindCSS -->
+    <script src="../tailwind/libs/tailwind.js"></script>
+
+    <!-- 引入字体和图标 -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
+      rel="stylesheet"
+    />
+
+    <!-- 引入Vue 3 -->
+    <script src="../tailwind/libs/vue@3.5.13.js"></script>
+
+    <!-- 引入API -->
+    <script src="../tailwind/api.js"></script>
+
+    <!-- 引入自定义CSS -->
+    <link rel="stylesheet" href="./style.css" />
+
+    <style>
+      /* 页面特定样式 */
+      body {
+        overflow: hidden;
+      }
+
+      .album-rotate {
+        animation: rotate 20s linear infinite;
+        animation-play-state: paused;
+      }
+
+      .album-rotate.playing {
+        animation-play-state: running;
+      }
+
+      @keyframes rotate {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .lyrics-container {
+        mask-image: linear-gradient(
+          to bottom,
+          transparent,
+          black 10%,
+          black 90%,
+          transparent
+        );
+        -webkit-mask-image: linear-gradient(
+          to bottom,
+          transparent,
+          black 10%,
+          black 90%,
+          transparent
+        );
+      }
+    </style>
+  </head>
+
+  <body
+    class="font-sans bg-[#f5f5f7] dark:bg-[#1c1c1e] text-[#1d1d1f] dark:text-white transition-colors duration-300"
+  >
+    <div id="app" v-cloak>
+      <!-- 提示消息 -->
+      <div class="toast toast-top toast-center z-[9999]">
+        <div v-if="showToast" :class="['alert', toastType]">
+          <span>{{ toastMessage }}</span>
+        </div>
+      </div>
+
+      <!-- 背景 -->
+      <div
+        class="fixed inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out"
+        :style="{ backgroundImage: `url(${currentSong.cover || '../tailwind/favicon.ico'})` }"
+      ></div>
+      <div class="fixed inset-0 backdrop-blur-2xl bg-black/40"></div>
+
+      <!-- 主内容 -->
+      <div class="relative z-10 flex flex-col h-screen">
+        <!-- 顶部导航 -->
+        <header class="p-4">
+          <div class="flex justify-between items-center">
+            <a href="./index.html" class="btn btn-circle btn-ghost text-white">
+              <span class="material-icons-round">arrow_back</span>
+            </a>
+            <div class="text-center text-white">
+              <h1 class="text-lg font-medium">正在播放</h1>
+              <p class="text-sm opacity-70">
+                {{ currentSong.cur_playlist || '未知歌单' }}
+              </p>
+            </div>
+            <button
+              @click="toggleTheme"
+              class="btn btn-circle btn-ghost text-white"
+            >
+              <span class="material-icons-round"
+                >{{ isDarkMode ? 'light_mode' : 'dark_mode' }}</span
+              >
+            </button>
+          </div>
+        </header>
+
+        <!-- 专辑封面和控制 -->
+        <div
+          class="flex-1 flex flex-col items-center justify-center p-6 overflow-hidden"
+        >
+          <div
+            class="w-64 h-64 md:w-80 md:h-80 rounded-full overflow-hidden mb-8 shadow-2xl"
+          >
+            <div
+              :class="['album-rotate w-full h-full', isPlaying ? 'playing' : '']"
+            >
+              <img
+                :src="currentSong.cover || '../tailwind/favicon.ico'"
+                alt="Album Cover"
+                class="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+
+          <div class="text-center text-white w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-1">
+              {{ currentSong.title || '未播放' }}
+            </h2>
+            <p class="text-lg opacity-70 mb-6">
+              {{ currentSong.artist || '未知艺术家' }}
+            </p>
+
+            <!-- 进度条 -->
+            <div class="w-full mb-6">
+              <div class="flex justify-between text-sm opacity-70 mb-2">
+                <span>{{ formatTime(currentTime) }}</span>
+                <span>{{ formatTime(duration) }}</span>
+              </div>
+              <input
+                type="range"
+                v-model="seekPosition"
+                @change="seek"
+                min="0"
+                max="100"
+                class="range range-xs range-primary w-full"
+              />
+            </div>
+
+            <!-- 播放控制 -->
+            <div class="flex justify-center items-center space-x-6">
+              <button
+                @click="toggleShuffle"
+                :class="['btn btn-circle btn-ghost text-white', shuffle ? 'text-rose-400' : '']"
+              >
+                <span class="material-icons-round">shuffle</span>
+              </button>
+              <button
+                @click="playPrevious"
+                class="btn btn-circle btn-ghost text-white"
+              >
+                <span class="material-icons-round text-2xl">skip_previous</span>
+              </button>
+              <button
+                @click="togglePlay"
+                class="btn btn-circle bg-white text-rose-500 hover:bg-white/90 border-none w-16 h-16"
+              >
+                <span class="material-icons-round text-3xl"
+                  >{{ isPlaying ? 'pause' : 'play_arrow' }}</span
+                >
+              </button>
+              <button
+                @click="playNext"
+                class="btn btn-circle btn-ghost text-white"
+              >
+                <span class="material-icons-round text-2xl">skip_next</span>
+              </button>
+              <button
+                @click="toggleRepeat"
+                :class="['btn btn-circle btn-ghost text-white', repeatMode !== 'off' ? 'text-rose-400' : '']"
+              >
+                <span class="material-icons-round"
+                  >{{ repeatMode === 'one' ? 'repeat_one' : 'repeat' }}</span
+                >
+              </button>
+            </div>
+
+            <!-- 音量控制 -->
+            <div class="flex items-center justify-center mt-6">
+              <span class="material-icons-round text-white opacity-70 mr-2"
+                >volume_up</span
+              >
+              <input
+                type="range"
+                v-model="volume"
+                @change="setVolume"
+                min="0"
+                max="100"
+                class="range range-xs range-primary w-32"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- 底部播放队列 -->
+        <footer
+          class="p-4 bg-white/10 backdrop-blur-md border-t border-white/20"
+        >
+          <div class="flex justify-between items-center text-white mb-2">
+            <h3 class="font-medium">播放队列</h3>
+            <a href="./index.html" class="text-sm opacity-70">查看全部</a>
+          </div>
+          <div class="overflow-x-auto">
+            <div class="flex space-x-4 pb-2">
+              <div
+                v-for="(song, index) in playQueue.slice(0, 10)"
+                :key="index"
+                @click="playSongFromQueue(index)"
+                :class="['flex-shrink-0 w-32 cursor-pointer transition-transform hover:scale-105', 
+                                     currentSongIndex === index ? 'transform scale-105' : '']"
+              >
+                <div
+                  class="w-32 h-32 rounded-lg overflow-hidden mb-2 bg-gray-200 dark:bg-gray-700"
+                >
+                  <img
+                    :src="song.cover || '../tailwind/favicon.ico'"
+                    alt="Cover"
+                    class="w-full h-full object-cover"
+                  />
+                </div>
+                <div class="text-center">
+                  <h4
+                    :class="['font-medium text-sm truncate', currentSongIndex === index ? 'text-rose-400' : '']"
+                  >
+                    {{ song.title }}
+                  </h4>
+                  <p class="text-xs opacity-70 truncate">
+                    {{ song.artist || '未知艺术家' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script>
+      // XiaoMusic Apple Music风格皮肤 - 正在播放页面
+      const { createApp } = Vue;
+
+      const app = createApp({
+        data() {
+          return {
+            // 界面状态
+            isDarkMode: window.matchMedia("(prefers-color-scheme: dark)")
+              .matches,
+            showToast: false,
+            toastMessage: "",
+            toastType: "alert-info",
+            toastTimeout: null,
+
+            // 播放状态
+            currentSong: {},
+            playQueue: [],
+            currentSongIndex: 0,
+            isPlaying: false,
+            currentTime: 0,
+            duration: 0,
+            seekPosition: 0,
+            volume: 50,
+            repeatMode: "off", // 'off', 'all', 'one'
+            shuffle: false,
+
+            // 设备ID
+            deviceId: "web_device",
+
+            // 定时器
+            statusInterval: null,
+            progressInterval: null,
+          };
+        },
+
+        mounted() {
+          // 初始化
+          this.initTheme();
+          this.getPlayingStatus();
+          this.getVolume();
+
+          // 设置定时器获取播放状态
+          this.statusInterval = setInterval(() => {
+            this.getPlayingStatus();
+          }, 5000);
+
+          // 设置定时器更新进度
+          this.progressInterval = setInterval(() => {
+            if (this.isPlaying && this.duration > 0) {
+              this.currentTime += 1;
+              this.seekPosition = (this.currentTime / this.duration) * 100;
+
+              // 如果播放结束，根据重复模式处理
+              if (this.currentTime >= this.duration) {
+                if (this.repeatMode === "one") {
+                  this.currentTime = 0;
+                } else if (
+                  this.repeatMode === "all" ||
+                  this.repeatMode === "off"
+                ) {
+                  this.playNext();
+                }
+              }
+            }
+          }, 1000);
+        },
+
+        beforeUnmount() {
+          // 清除定时器
+          clearInterval(this.statusInterval);
+          clearInterval(this.progressInterval);
+        },
+
+        methods: {
+          // 初始化主题
+          initTheme() {
+            if (localStorage.getItem("theme") === "dark") {
+              this.isDarkMode = true;
+              document.documentElement.setAttribute("data-theme", "dark");
+            } else if (localStorage.getItem("theme") === "light") {
+              this.isDarkMode = false;
+              document.documentElement.setAttribute("data-theme", "light");
+            }
+          },
+
+          // 切换主题
+          toggleTheme() {
+            this.isDarkMode = !this.isDarkMode;
+            document.documentElement.setAttribute(
+              "data-theme",
+              this.isDarkMode ? "dark" : "light"
+            );
+            localStorage.setItem("theme", this.isDarkMode ? "dark" : "light");
+          },
+
+          // 获取当前播放状态
+          async getPlayingStatus() {
+            try {
+              const status = await API.getPlayingStatus(this.deviceId);
+
+              // 更新当前歌曲信息
+              if (status.cur_music) {
+                // 如果当前歌曲变化，获取详细信息
+                if (
+                  !this.currentSong.title ||
+                  this.currentSong.title !== status.cur_music
+                ) {
+                  const songInfo = await API.getMusicInfo(status.cur_music);
+                  this.currentSong = songInfo;
+
+                  // 更新播放队列
+                  if (status.cur_playlist) {
+                    const songs = await API.getPlaylistMusics(
+                      status.cur_playlist
+                    );
+
+                    // 获取队列中所有歌曲的详细信息
+                    const songNames = songs.map((song) =>
+                      typeof song === "string" ? song : song.title
+                    );
+                    const songsInfo = await API.getMusicInfos(songNames);
+
+                    this.playQueue = songsInfo;
+
+                    // 找到当前歌曲在队列中的索引
+                    this.currentSongIndex = this.playQueue.findIndex(
+                      (song) => song.title === status.cur_music
+                    );
+                  }
+                }
+
+                // 更新播放状态
+                this.isPlaying = status.state === "PLAYING";
+
+                // 更新歌曲时长
+                if (this.currentSong.duration) {
+                  this.duration = this.currentSong.duration;
+                }
+              }
+            } catch (error) {
+              console.error("获取播放状态失败:", error);
+            }
+          },
+
+          // 获取音量
+          async getVolume() {
+            try {
+              const response = await API.getVolume(this.deviceId);
+              if (response && response.volume !== undefined) {
+                this.volume = response.volume;
+              }
+            } catch (error) {
+              console.error("获取音量失败:", error);
+            }
+          },
+
+          // 设置音量
+          async setVolume() {
+            try {
+              await API.setVolume(this.deviceId, this.volume);
+            } catch (error) {
+              console.error("设置音量失败:", error);
+              this.showToastMessage("设置音量失败", "alert-error");
+            }
+          },
+
+          // 播放/暂停
+          async togglePlay() {
+            try {
+              if (this.isPlaying) {
+                await API.sendCommand(this.deviceId, API.commands.PLAY_PAUSE);
+                this.isPlaying = false;
+              } else {
+                await API.sendCommand(
+                  this.deviceId,
+                  API.commands.PLAY_CONTINUE
+                );
+                this.isPlaying = true;
+              }
+            } catch (error) {
+              console.error("播放/暂停失败:", error);
+              this.showToastMessage("播放/暂停失败", "alert-error");
+            }
+          },
+
+          // 播放上一首
+          async playPrevious() {
+            try {
+              await API.sendCommand(this.deviceId, API.commands.PLAY_PREVIOUS);
+              // 状态会通过定时器更新，但为了UI响应更快，手动更新索引
+              if (this.currentSongIndex > 0) {
+                this.currentSongIndex--;
+              } else {
+                this.currentSongIndex = this.playQueue.length - 1;
+              }
+              this.currentTime = 0;
+              this.seekPosition = 0;
+            } catch (error) {
+              console.error("播放上一首失败:", error);
+              this.showToastMessage("播放上一首失败", "alert-error");
+            }
+          },
+
+          // 播放下一首
+          async playNext() {
+            try {
+              await API.sendCommand(this.deviceId, API.commands.PLAY_NEXT);
+              // 状态会通过定时器更新，但为了UI响应更快，手动更新索引
+              if (this.currentSongIndex < this.playQueue.length - 1) {
+                this.currentSongIndex++;
+              } else {
+                this.currentSongIndex = 0;
+              }
+              this.currentTime = 0;
+              this.seekPosition = 0;
+            } catch (error) {
+              console.error("播放下一首失败:", error);
+              this.showToastMessage("播放下一首失败", "alert-error");
+            }
+          },
+
+          // 切换重复模式
+          async toggleRepeat() {
+            if (this.repeatMode === "off") {
+              this.repeatMode = "all";
+              await API.sendCommand(
+                this.deviceId,
+                API.commands.PLAY_MODE_SEQUENCE
+              );
+              this.showToastMessage("全部循环", "alert-info");
+            } else if (this.repeatMode === "all") {
+              this.repeatMode = "one";
+              await API.sendCommand(
+                this.deviceId,
+                API.commands.PLAY_MODE_SINGLE
+              );
+              this.showToastMessage("单曲循环", "alert-info");
+            } else {
+              this.repeatMode = "off";
+              await API.sendCommand(
+                this.deviceId,
+                API.commands.PLAY_MODE_SEQUENCE
+              );
+              this.showToastMessage("顺序播放", "alert-info");
+            }
+          },
+
+          // 切换随机播放
+          async toggleShuffle() {
+            this.shuffle = !this.shuffle;
+            if (this.shuffle) {
+              await API.sendCommand(
+                this.deviceId,
+                API.commands.PLAY_MODE_RANDOM
+              );
+              this.showToastMessage("随机播放", "alert-info");
+            } else {
+              await API.sendCommand(
+                this.deviceId,
+                API.commands.PLAY_MODE_SEQUENCE
+              );
+              this.showToastMessage("顺序播放", "alert-info");
+            }
+          },
+
+          // 从播放队列播放歌曲
+          async playSongFromQueue(index) {
+            if (index === this.currentSongIndex) {
+              // 如果点击当前播放的歌曲，切换播放/暂停
+              this.togglePlay();
+              return;
+            }
+
+            try {
+              const song = this.playQueue[index];
+              if (song) {
+                // 播放歌曲
+                await API.playMusicFromList(
+                  this.deviceId,
+                  this.currentSong.cur_playlist,
+                  song.title
+                );
+
+                // 更新UI
+                this.currentSongIndex = index;
+                this.currentTime = 0;
+                this.seekPosition = 0;
+                this.showToastMessage(
+                  `正在播放: ${song.title}`,
+                  "alert-success"
+                );
+              }
+            } catch (error) {
+              console.error("播放歌曲失败:", error);
+              this.showToastMessage("播放歌曲失败", "alert-error");
+            }
+          },
+
+          // 拖动进度条
+          seek() {
+            // 计算新的播放时间
+            const newTime = (this.seekPosition / 100) * this.duration;
+            this.currentTime = newTime;
+
+            // 这里可以实现跳转功能，但API似乎没有提供相关能力
+            // 所以这里只是更新UI
+          },
+
+          // 显示提示消息
+          showToastMessage(message, type = "alert-info") {
+            // 清除之前的定时器
+            if (this.toastTimeout) {
+              clearTimeout(this.toastTimeout);
+            }
+
+            // 显示新消息
+            this.toastMessage = message;
+            this.toastType = type;
+            this.showToast = true;
+
+            // 设置定时器自动关闭
+            this.toastTimeout = setTimeout(() => {
+              this.showToast = false;
+            }, 3000);
+          },
+
+          // 格式化时间 (秒 -> MM:SS)
+          formatTime(seconds) {
+            if (!seconds) return "00:00";
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, "0")}:${secs
+              .toString()
+              .padStart(2, "0")}`;
+          },
+        },
+      });
+
+      // 挂载应用
+      app.mount("#app");
+    </script>
+  </body>
+</html>
